@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 'use client';
 
 import { useState } from 'react';
@@ -27,23 +26,29 @@ const MeetingTypeList = () => {
   >(undefined);
   const [values, setValues] = useState(initialValues);
   const [callDetail, setCallDetail] = useState<Call>();
+  const [loading, setLoading] = useState(false);
   const client = useStreamVideoClient();
   const { user } = useUser();
   const { toast } = useToast();
 
   const createMeeting = async () => {
     if (!client || !user) return;
+    setLoading(true); // Start loading
     try {
       if (!values.dateTime) {
         toast({ title: 'Please select a date and time' });
+        setLoading(false);
         return;
       }
+
       const id = crypto.randomUUID();
       const call = client.call('default', id);
       if (!call) throw new Error('Failed to create meeting');
+
       const startsAt =
         values.dateTime.toISOString() || new Date(Date.now()).toISOString();
       const description = values.description || 'Instant Meeting';
+
       await call.getOrCreate({
         data: {
           starts_at: startsAt,
@@ -52,20 +57,23 @@ const MeetingTypeList = () => {
           },
         },
       });
+
       setCallDetail(call);
+
       if (!values.description) {
         router.push(`/meeting/${call.id}`);
       }
-      toast({
-        title: 'Meeting Created',
-      });
+
+      toast({ title: 'Meeting Created' });
     } catch (error) {
       console.error(error);
       toast({ title: 'Failed to create Meeting' });
+    } finally {
+      setLoading(false); // Stop loading
     }
   };
 
-  if (!client || !user) return <Loader />;
+  if (!client || !user || loading) return <Loader />;
 
   const meetingLink = `${process.env.NEXT_PUBLIC_BASE_URL}/meeting/${callDetail?.id}`;
 
@@ -99,6 +107,7 @@ const MeetingTypeList = () => {
         handleClick={() => router.push('/recordings')}
       />
 
+      {/* Schedule Meeting Modal */}
       {!callDetail ? (
         <MeetingModal
           isOpen={meetingState === 'isScheduleMeeting'}
@@ -149,21 +158,43 @@ const MeetingTypeList = () => {
         />
       )}
 
+      {/* Join Meeting Modal */}
       <MeetingModal
         isOpen={meetingState === 'isJoiningMeeting'}
-        onClose={() => setMeetingState(undefined)}
-        title="Type the link here"
+        onClose={() => {
+          setMeetingState(undefined);
+          setValues(initialValues);
+        }}
+        title="Join a Meeting"
         className="text-center"
-        buttonText="Join Meeting"
-        handleClick={() => router.push(values.link)}
-      >
-        <Input
-          placeholder="Meeting link"
-          onChange={(e) => setValues({ ...values, link: e.target.value })}
-          className="border-none bg-dark-3 focus-visible:ring-0 focus-visible:ring-offset-0"
-        />
-      </MeetingModal>
+        buttonText={loading ? 'Joining...' : 'Join Meeting'}
+        disabled={loading}
+        handleClick={async () => {
+          if (!values.link || !values.link.includes('/meeting/')) {
+            toast({ title: 'Please enter a valid meeting link' });
+            return;
+          }
 
+          try {
+            setLoading(true);
+            router.push(values.link);
+          } catch (error) {
+            toast({ title: 'Failed to join meeting' });
+          } finally {
+            setLoading(false);
+          }
+        }}
+>
+  <Input
+    placeholder="Paste your meeting link here"
+    value={values.link}
+    onChange={(e) => setValues({ ...values, link: e.target.value })}
+    className="border-none bg-dark-3 focus-visible:ring-0 focus-visible:ring-offset-0"
+  />
+</MeetingModal>
+
+
+      {/* Instant Meeting Modal */}
       <MeetingModal
         isOpen={meetingState === 'isInstantMeeting'}
         onClose={() => setMeetingState(undefined)}

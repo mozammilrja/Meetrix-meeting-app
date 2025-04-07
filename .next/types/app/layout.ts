@@ -1,4 +1,4 @@
-// File: D:\Project-2024\New folder\zoom-clone\app\layout.tsx
+// File: D:\Project-2024\New folder\zoom-clone\Meetrix-meeting-app\app\layout.tsx
 import * as entry from '../../../app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
